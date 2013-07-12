@@ -207,6 +207,8 @@ APHeader readAPHeader44DD55AA(FILE *f)
     {
         fprintf(stderr, "Not 0x0    :44DD55AA\n    0x2000 :33EC55AA\n");
         goto failed;
+    } else {
+      fprintf(stderr, "POR AQUI\n");
     }
 
     curMagicNum = &out.magic;
@@ -231,41 +233,46 @@ APHeader readAPHeader44DD55AA(FILE *f)
     curDataBlock = &dataBlock;
 
     /*TOT FILES*/
-    if (out.magic.next->off == 0x8 && out.magic.next->next->off == 0x2000)
-        switch (out.magic.next->magic)
-        {
-        default:
-            printf("Did not detect known magic numbers!\n"
-                    "  The File Appears to be a TOT File.All known TOT Files\n"
-                    "  have the same format with different magic numbers.\n"
-                    "  Do you want to assume that and try? Y/N : ");
 
-            scanf("%s", buf);
+    fprintf("out.magic.next->off = %0x out.magic.next->next->off = %x ") //////// AQUIAQUI
 
-            if (!(buf[0] == 'Y' || buf[0] == 'y')) break;
+    if (out.magic.next->off == 0x8 && out.magic.next->next->off == 0x2000) {
+      fprintf(stderr, "UNO!\n");
+      switch (out.magic.next->magic) {
+      default:
+        printf("Did not detect known magic numbers!\n"
+               "  The File Appears to be a TOT File.All known TOT Files\n"
+               "  have the same format with different magic numbers.\n"
+               "  Do you want to assume that and try? Y/N : ");
+        
+        scanf("%s", buf);
+        
+        if (!(buf[0] == 'Y' || buf[0] == 'y')) break;
+        
+      case 0x8978f62b:
+      case 0x5062c8ea:
+      case 0x49838b94:
+      case 0xdebf33af:
+      case 0x42ef4e39:
+      case 0x0e65f034:
+      case 0x95f57d8c:
+        /*tot*/
+        curDataBlock->next = malloc(sizeof(DataBlock));
+        curDataBlock = curDataBlock->next;
+        curDataBlock->blockOff = 0x4220;
+        curDataBlock->blockSize = 0x20;
+        
+        curDataBlock->numItems = 1;
+        curDataBlock->items = calloc(sizeof(Item), 1);
+        curDataBlock->items[0].type = BLOCK_NAME;
+        curDataBlock->items[0].size = 0x20;
+        
+        goto readBlocks;
+      }
+    }
+    if (out.magic.next->off == 0x600 && out.magic.next->next->off == 0x2000) {
+      fprintf(stderr, "DOS!\n");
 
-        case 0x8978f62b:
-        case 0x5062c8ea:
-        case 0x49838b94:
-        case 0xdebf33af:
-        case 0x42ef4e39:
-        case 0x0e65f034:
-        case 0x95f57d8c:
-            /*tot*/
-            curDataBlock->next = malloc(sizeof(DataBlock));
-            curDataBlock = curDataBlock->next;
-            curDataBlock->blockOff = 0x4220;
-            curDataBlock->blockSize = 0x20;
-
-            curDataBlock->numItems = 1;
-            curDataBlock->items = calloc(sizeof(Item), 1);
-            curDataBlock->items[0].type = BLOCK_NAME;
-            curDataBlock->items[0].size = 0x20;
-
-            goto readBlocks;
-        }
-
-    if (out.magic.next->off == 0x600 && out.magic.next->next->off == 0x2000)
         switch (out.magic.next->magic)
         {
         case 0xcc00bbaa:
@@ -289,16 +296,16 @@ APHeader readAPHeader44DD55AA(FILE *f)
 
             goto readBlocks;
         }
+    }
+    if (out.magic.next->off == 0x2000) {
+      fprintf(stderr, "TRES!\n");
 
-    if (out.magic.next->off == 0x2000)
-    {
         printf("%x %x\n", out.magic.next->magic, out.magic.next->off);
         /*CHECK FOR THIRD MAGIC NUM AT 0x4000*/
         fseek(f, 0x4000, SEEK_SET);
         fread(&tmp, sizeof(uint32_t), 1, f);
 
-        if (tmp == 0x00000000)
-        {
+        if (tmp == 0x00000000) {
             curDataBlock->next = malloc(sizeof(DataBlock));
             curDataBlock = curDataBlock->next;
             curDataBlock->blockOff = 0x3004;
@@ -308,18 +315,15 @@ APHeader readAPHeader44DD55AA(FILE *f)
             curDataBlock->items = calloc(sizeof(Item), 1);
             curDataBlock->items[0].type = BLOCK_NAME;
             curDataBlock->items[0].size = 0x14;
-        }
-        else if (tmp != 0xffffffff)
-        {
+        } else if (tmp != 0xffffffff) {
             /*FOUND MAGIC NUM*/
             curMagicNum = out.magic.next;
             curMagicNum->next = malloc(sizeof(MagicNumber));
             curMagicNum = curMagicNum->next;
             curMagicNum->magic = tmp;
             curMagicNum->off = 0x4000;
-
-            switch (curMagicNum->magic)
-            {
+            
+            switch (curMagicNum->magic)    {
             case 0x56781234:
                 curDataBlock->next = malloc(sizeof(DataBlock));
                 curDataBlock = curDataBlock->next;
@@ -334,9 +338,7 @@ APHeader readAPHeader44DD55AA(FILE *f)
             default:
                 goto failed;
             }
-        }
-        else
-        {
+        } else {
             curDataBlock->next = malloc(sizeof(DataBlock));
             curDataBlock = curDataBlock->next;
             curDataBlock->blockOff = 0x2404;
