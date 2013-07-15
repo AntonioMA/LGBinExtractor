@@ -234,9 +234,9 @@ APHeader readAPHeader44DD55AA(FILE *f)
 
     /*TOT FILES*/
 
-    fprintf("out.magic.next->off = %0x out.magic.next->next->off = %x ") //////// AQUIAQUI
+    fprintf(stderr, "out.magic.next->off = %0x out.magic.next->next->off = %x\n", out.magic.next->off, out.magic.next->next->off);
 
-    if (out.magic.next->off == 0x8 && out.magic.next->next->off == 0x2000) {
+    if ((out.magic.next->off == 0x8 && out.magic.next->next->off == 0x2000)|| 1) {
       fprintf(stderr, "UNO!\n");
       switch (out.magic.next->magic) {
       default:
@@ -270,32 +270,34 @@ APHeader readAPHeader44DD55AA(FILE *f)
         goto readBlocks;
       }
     }
-    if (out.magic.next->off == 0x600 && out.magic.next->next->off == 0x2000) {
+
+    if ((out.magic.next->off == 0x600 && out.magic.next->next->off == 0x2000) || (out.magic.next->next->off == 0x600 && out.magic.next->next->next->off == 0x2000)) {
       fprintf(stderr, "DOS!\n");
 
-        switch (out.magic.next->magic)
-        {
-        case 0xcc00bbaa:
-            curDataBlock->next = malloc(sizeof(DataBlock));
-            curDataBlock = curDataBlock->next;
-            curDataBlock->blockOff = 0x2400;
-            curDataBlock->blockSize = 0x20;
-
-            curDataBlock->numItems = 5;
-            curDataBlock->items = calloc(sizeof(Item), 5);
-            curDataBlock->items[0].type = BLOCK_ID;
-            curDataBlock->items[0].size = 4;
-            curDataBlock->items[1].type = DISK_SIZE;
-            curDataBlock->items[1].size = 4;
-            curDataBlock->items[2].type = SKIP;
-            curDataBlock->items[2].size = 4;
-            curDataBlock->items[3].type = BLOCK_NAME;
-            curDataBlock->items[3].size = 0x14;
-            curDataBlock->items[4].type = SKIP;
-            curDataBlock->items[4].size = 0x1E0;
-
-            goto readBlocks;
-        }
+      unsigned int magic = (out.magic.next-> off == 0x600)?out.magic.next->magic:out.magic.next->next->magic;
+      
+      switch (magic) {
+      case 0xcc00bbaa:
+        curDataBlock->next = malloc(sizeof(DataBlock));
+        curDataBlock = curDataBlock->next;
+        curDataBlock->blockOff = 0x2400;
+        curDataBlock->blockSize = 0x20;
+        
+        curDataBlock->numItems = 5;
+        curDataBlock->items = calloc(sizeof(Item), 5);
+        curDataBlock->items[0].type = BLOCK_ID;
+        curDataBlock->items[0].size = 4;
+        curDataBlock->items[1].type = DISK_SIZE;
+        curDataBlock->items[1].size = 4;
+        curDataBlock->items[2].type = SKIP;
+        curDataBlock->items[2].size = 4;
+        curDataBlock->items[3].type = BLOCK_NAME;
+        curDataBlock->items[3].size = 0x14;
+        curDataBlock->items[4].type = SKIP;
+        curDataBlock->items[4].size = 0x1E0;
+        
+        goto readBlocks;
+      }
     }
     if (out.magic.next->off == 0x2000) {
       fprintf(stderr, "TRES!\n");
@@ -363,8 +365,7 @@ APHeader readAPHeader44DD55AA(FILE *f)
 
     fread(buf, sizeof(char), 0x10, f);
 
-    while (*((uint32_t*) buf) != 0xFFFFFFFF)
-    {
+    while (*((uint32_t*) buf) != 0xFFFFFFFF) {
         out.pent_num++;
         fread(buf, sizeof(uint32_t), 4, f);
     }
@@ -373,8 +374,7 @@ APHeader readAPHeader44DD55AA(FILE *f)
             sizeof(APPartitionEntry));
 
     /*INIT AP PARTITION ENTRIES*/
-    for (i = 0; i < out.pent_num; i++)
-    {
+    for (i = 0; i < out.pent_num; i++) {
         out.pent_arr[i].disk_off = 0xffffffff;
         out.pent_arr[i].file_off = 0xffffffff;
         out.pent_arr[i].disk_size = 0xffffffff;
@@ -386,16 +386,12 @@ APHeader readAPHeader44DD55AA(FILE *f)
     /*READ APDATA*/
     curDataBlock = &dataBlock;
 
-    while (curDataBlock != NULL)
-    {
+    while (curDataBlock != NULL) {
         fseek(f, curDataBlock->blockOff, SEEK_SET);
 
-        for (i = 0; i < out.pent_num; i++)
-        {
-            for (j = 0; j < curDataBlock->numItems; j++)
-            {
-                switch (curDataBlock->items[j].type)
-                {
+        for (i = 0; i < out.pent_num; i++) {
+            for (j = 0; j < curDataBlock->numItems; j++) {
+                switch (curDataBlock->items[j].type) {
                 case DISK_SIZE:
                     fread(&out.pent_arr[i].disk_size,
                             curDataBlock->items[j].size, 1, f);
@@ -433,7 +429,7 @@ APHeader readAPHeader44DD55AA(FILE *f)
 
     /*MAKE SURE ID IS SET*/
     for (i = 0; i < out.pent_num; i++)
-        if (out.pent_arr[i].pent_id == 0xffffffff) out.pent_arr[i].pent_id = i;
+      if (out.pent_arr[i].pent_id == 0xffffffff) out.pent_arr[i].pent_id = i;
 
     return out;
     failed: fprintf(stderr, "Failed Reading APHeader!\n");
